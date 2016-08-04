@@ -1,0 +1,68 @@
+#!/bin/bash -e
+
+if [ $# -lt 2 ]; then
+  echo "MMonit Host Status for CLI"
+  echo "Usage:"
+  echo "$0 group action"
+  echo "   group:[GROUP or ALL]"
+  echo "   active:[active|ignored|inactive]"
+  exit 1
+fi
+
+MMONIT="$MMONIT_HOST"
+USERNAME=$MMONIT_USERNAME
+PASSWORD=$MMONIT_PASSWORD
+GROUP=$1
+STATUS=$2
+
+case $STATUS in
+  inactive ) ACTION=1 ;;
+  ignored  ) ACTION=2 ;;
+  active   ) ACTION=0 ;;
+esac
+
+[ -d ~/.mmonit ] || mkdir -m 0700 ~/.mmonit
+
+curl -s -c ~/.mmonit/cookie \
+  https:/$MMONIT/index.csp \
+  >> /dev/null
+
+curl -s -b ~/.mmonit/cookie \
+  -d z_username=$USERNAME \
+  -d z_password=$PASSWORD \
+  -d z_csrf_protection=off \
+  https://$MMONIT/z_security_check \
+  >> /dev/null
+
+if [ $GROUP == "ALL" ]; then
+  HOSTS=$( \
+    curl -s -b ~/.mmonit/cookie \
+    "https://$MMONIT/admin/groups/list" \
+    | jq ".groups[] | .hosts[]"\
+    )
+else
+  HOSTS=$( \
+    curl -s -b ~/.mmonit/cookie \
+    "https://$MMONIT/admin/groups/list" \
+    | jq ".groups[] | select(.name == \"$GROUP\").hosts[]"\
+    )
+fi
+
+echo -en "$GROUP Hosts Change Status ${STATUS} Requesting..."
+
+for i in $HOSTS; do
+  hostname=$( \
+    curl -s -b ~/.mmonit/cookie \
+    "https://$MMONIT/admin/hosts/get?id=$i" | \
+      jq '.hostname' \
+  )
+  curl -s -b ~/.mmonit/cookie \
+    -d id=$i \
+    -d monituser=$USERNAME \
+    -d monitpassword=$PASSWORD \
+    -d hostname=$hostname \
+    -d status=${ACTION} \
+    https://$MMONIT/admin/hosts/update
+done
+
+echo -en "\\033[1;32mSuccess!\\033[0;39m"
