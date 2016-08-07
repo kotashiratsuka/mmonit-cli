@@ -38,13 +38,13 @@ if [ $GROUP == "ALL" ]; then
   HOSTS=$( \
     curl -s -b ~/.mmonit/cookie \
     "https://$MMONIT/admin/groups/list" \
-    | jq ".groups[] | .hosts[]"\
+    | jq -r ".groups[] | .hosts[]"\
     )
 else
   HOSTS=$( \
     curl -s -b ~/.mmonit/cookie \
     "https://$MMONIT/admin/groups/list" \
-    | jq ".groups[] | select(.name == \"$GROUP\").hosts[]"\
+    | jq -r ".groups[] | select(.name == \"$GROUP\").hosts[]"\
     )
 fi
 
@@ -54,7 +54,7 @@ for i in $HOSTS; do
   hostname=$( \
     curl -s -b ~/.mmonit/cookie \
     "https://$MMONIT/admin/hosts/get?id=$i" | \
-      jq '.hostname' \
+    jq -r ".hostname" \
   )
   curl -s -b ~/.mmonit/cookie \
     -d id=$i \
