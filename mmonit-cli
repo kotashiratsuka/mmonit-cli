@@ -50,18 +50,29 @@ fi
 
 echo -en "$GROUP Hosts Change Status ${STATUS} Requesting..."
 
+jsonfile=`mktemp mmonit.XXXXXX`
+trap "[ -f $jsonfile ] && rm -f $jsonfile" EXIT
+
 for i in $HOSTS; do
-  hostname=$( \
-    curl -s -b ~/.mmonit/cookie \
-    "https://$MMONIT/admin/hosts/get?id=$i" | \
-    jq -r ".hostname" \
-  )
+  curl -s -b ~/.mmonit/cookie -o $jsonfile "https://$MMONIT/admin/hosts/get?id=$i"
+  hostname=$(jq -r ".hostname" $jsonfile)
+  monituser=$(jq -r ".monituser" $jsonfile)
+  monitpassword=$(jq -r ".monitpassword" $jsonfile)
+  ipaddrout=$(jq -r ".ipaddrout" $jsonfile)
+  portout=$(jq -r ".portout" $jsonfile)
+  keepname=$(jq -r ".keepname" $jsonfile)
+  description=$(jq -r ".description" $jsonfile)
   curl -s -b ~/.mmonit/cookie \
     -d id=$i \
-    -d monituser=$USERNAME \
-    -d monitpassword=$PASSWORD \
-    -d hostname=$hostname \
-    -d status=${ACTION} \
+    -d monituser="$monituser" \
+    -d monitpassword="$monitpassword" \
+    -d hostname="$hostname" \
+    -d keepname="1" \
+    -d ipaddrout="$ipaddrout" \
+    -d portout="$portout" \
+    -d keepname="$keepname" \
+    -d status="$ACTION" \
+    -d description="$description" \
     https://$MMONIT/admin/hosts/update
 done
 
