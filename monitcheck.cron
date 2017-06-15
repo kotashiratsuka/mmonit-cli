@@ -1,0 +1,45 @@
+#!/bin/bash
+
+MMONIT_HOST="__MMONIT_HOST__"
+MMONIT_USERNAME="__MMONIT_USER__"
+MMONIT_PASSWORD="__MMONIT_PASS__"
+MMONIT_FROM="__FROM__"
+MMONIT_TO="__TO__"
+
+[ -d ~/.mmonit ] || mkdir -m 0700 ~/.mmonit
+
+curl -s -c ~/.mmonit/cookie \
+  ${MMONIT_HOST}/index.csp \
+  >> /dev/null
+
+curl -s -b ~/.mmonit/cookie \
+  -d z_username=${MMONIT_USERNAME} \
+  -d z_password=${MMONIT_PASSWORD} \
+  -d z_csrf_protection=off \
+  ${MMONIT_HOST}/z_security_check \
+  >> /dev/null
+
+curl -s -b ~/.mmonit/cookie ${MONIT_HOST}/admin/alerts/list | jq '.[].active' | grep -qv true
+
+[ ! $? == 0 ] || /usr/sbin/sendmail -f "${MMONIT_FROM}" -t "${MMONIT_TO}" <<EOL
+From: ${MMONIT_FROM}
+To: ${MMONIT_TO}
+Subject: =?UTF-8?B?$(echo "アラートがOFFになってるよ"|base64)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+$(echo "ちゃんとONに戻そう"|base64)
+EOL
+
+curl -s -b ~/.mmonit/cookie ${MMONIT_HOST}/admin/hosts/list | jq -r '.records[].status' | grep -qv Active
+[ ! $? == 0 ] || /usr/sbin/sendmail -f "${MMONIT_FROM}" -t "${MMONIT_TO}" <<EOL
+From: ${MMONIT_FROM}
+To: ${MMONIT_TO}
+Subject: =?UTF-8?B?$(echo "Hostの監視がOFFになってるよ"|base64)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+$(echo "ちゃんとONに戻そう"|base64)
+EOL
