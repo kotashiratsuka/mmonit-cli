@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 if [ $# -lt 2 ]; then
   echo "MMonit Host Status for CLI"
@@ -34,7 +34,7 @@ curl -s -b ~/.mmonit/cookie \
   https://$MMONIT/z_security_check \
   >> /dev/null
 
-if [ $GROUP == "ALL" ]; then
+if [ $GROUP = "ALL" ]; then
   HOSTS=$( \
     curl -s -b ~/.mmonit/cookie \
     "https://$MMONIT/admin/groups/list" \
@@ -48,7 +48,7 @@ else
     )
 fi
 
-echo -en "$GROUP Hosts Change Status ${STATUS} Requesting..."
+printf "$GROUP Hosts Change Status ${STATUS} Requesting..."
 
 jsonfile=`mktemp mmonit.XXXXXX`
 trap "[ -f $jsonfile ] && rm -f $jsonfile" EXIT
@@ -61,6 +61,7 @@ for i in $HOSTS; do
   ipaddrout=$(jq -r ".ipaddrout" $jsonfile)
   portout=$(jq -r ".portout" $jsonfile)
   keepname=$(jq -r ".keepname" $jsonfile)
+  skew=$(jq -r ".skew" $jsonfile)
   description=$(jq -r ".description" $jsonfile)
   curl -s -b ~/.mmonit/cookie \
     -d id=$i \
@@ -72,8 +73,10 @@ for i in $HOSTS; do
     -d portout="$portout" \
     -d keepname="$keepname" \
     -d status="$ACTION" \
+    -d skew="$skew" \
     -d description="$description" \
     https://$MMONIT/admin/hosts/update
+    printf .
 done
 
-echo -en "\\033[1;32mSuccess!\\033[0;39m"
+printf "\\033[1;32mSuccess!\\033[0;39m"
